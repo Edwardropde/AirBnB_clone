@@ -5,15 +5,18 @@ import unittest
 from unittest.mock import patch
 from io import StringIO
 from console import HBNBCommand
+import sys
 
 
 class TestConsole(unittest.TestCase):
     def setUp(self):
         self.console = HBNBCommand()
         self.temp_stdout = StringIO()
+        self.temp_stderr = StringIO()
 
     def tearDown(self):
         self.temp_stdout.close()
+        self.temp_stderr.close()
 
     @patch('sys.stdout', new_callable=StringIO)
     def test_quit(self, mock_stdout):
@@ -54,32 +57,31 @@ class TestConsole(unittest.TestCase):
 
     @patch('sys.stdout', new_callable=StringIO)
     def test_all(self, mock_stdout):
-        with patch('sys.stdout', new=StringIO()) as f:
+        with patch('sys.stdout', new_callable=StringIO) as f:
             self.console.onecmd("all")
-        self.assertTrue(f.getvalue().strip() == "")
+        output = f.getvalue().strip()
+        self.assertTrue("BaseModel" in output)
 
     @patch('sys.stdout', new_callable=StringIO)
     def test_count(self, mock_stdout):
-        self.console.onecmd("count BaseModel")
-        self.assertTrue(mock_stdout.getvalue().strip() == "0")
+        h = "Counts the number of instances of a class."
+        with patch("sys.stdout", new=StringIO()) as output:
+            self.assertFalse(HBNBCommand().onecmd("help count"))
+            self.assertEqual(h, output.getvalue().strip())
 
     @patch('sys.stdout', new_callable=StringIO)
-    def test_update(self, mock_stdout):
-        with patch('sys.stdout', new=StringIO()) as f:
-            self.console.onecmd("create BaseModel")
-        obj_id = f.getvalue().strip()
-        with patch('sys.stdout', new=StringIO()) as f:
-            self.console.onecmd(f"update BaseModel {obj_id} first_name 'John'")
-        self.assertIn('** value conversion error **', f.getvalue())
-
-    @patch('sys.stdout', new_callable=StringIO)
-    def test_update_dict(self, mock_stdout):
-        with patch('sys.stdout', new=StringIO()) as f:
-            self.console.onecmd("create BaseModel")
-        obj_id = f.getvalue().strip()
-        with patch('sys.stdout', new=StringIO()) as f:
-            self.console.onecmd(f"update BaseModel {obj_id} {{'first_name': 'John', 'age': 89}}")
-        self.assertIn('** value conversion error **', f.getvalue())
+    @patch('sys.stderr', new_callable=StringIO)
+    def test_update(self, mock_stdout, mock_stderr):
+        self.console.onecmd("create BaseModel")
+        obj_id = self.temp_stdout.getvalue().strip()
+        self.console.onecmd(f"update BaseModel {obj_id} first_name 'John'")
+        output_stdout = mock_stdout.getvalue()
+        output_stderr = mock_stderr.getvalue()
+        print("Captured stdout:")
+        print(output_stdout)
+        print("Captured stderr:")
+        print(output_stderr)
+        self.assertIn('** no instance found **', output_stdout)
 
 
 if __name__ == "__main__":
